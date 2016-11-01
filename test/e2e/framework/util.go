@@ -364,7 +364,7 @@ func SkipUnlessServerVersionGTE(v *utilversion.Version, c discovery.ServerVersio
 func SkipUnlessFederated(c clientset.Interface) {
 	federationNS := os.Getenv("FEDERATION_NAMESPACE")
 	if federationNS == "" {
-		federationNS = "federation"
+		federationNS = "federation-system"
 	}
 
 	_, err := c.Core().Namespaces().Get(federationNS, metav1.GetOptions{})
