@@ -825,7 +825,7 @@ var _ = framework.KubeDescribe("Kubectl client", func() {
 						return false, err
 					}
 
-					uidToPort := getContainerPortsByPodUID(endpoints)
+					uidToPort := framework.GetContainerPortsByPodUID(endpoints)
 					if len(uidToPort) == 0 {
 						framework.Logf("No endpoint found, retrying")
 						return false, nil
