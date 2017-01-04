@@ -19,14 +19,11 @@ package options
 import (
 	"fmt"
 	"net"
-	"os"
 	"strings"
 
 	"k8s.io/kubernetes/pkg/admission"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/v1"
 	"k8s.io/kubernetes/pkg/apimachinery/registered"
-	"k8s.io/kubernetes/pkg/cloudprovider"
 	"k8s.io/kubernetes/pkg/runtime/schema"
 	"k8s.io/kubernetes/pkg/util/config"
 
@@ -39,8 +36,6 @@ type ServerRunOptions struct {
 	AdmissionControlConfigFile string
 	AdvertiseAddress           net.IP
 
-	CloudConfigFile             string
-	CloudProvider               string
 	CorsAllowedOriginList       []string
 	DefaultStorageMediaType     string
 	DeleteCollectionWorkers     int
@@ -113,44 +108,6 @@ func (s *ServerRunOptions) DefaultAdvertiseAddress(secure *SecureServingOptions,
 	return nil
 }
 
-func (options *ServerRunOptions) DefaultExternalHost() error {
-	if len(options.ExternalHost) != 0 {
-		return nil
-	}
-
-	// TODO: extend for other providers
-	if options.CloudProvider == "gce" || options.CloudProvider == "aws" {
-		cloud, err := cloudprovider.InitCloudProvider(options.CloudProvider, options.CloudConfigFile)
-		if err != nil {
-			return fmt.Errorf("%q cloud provider could not be initialized: %v", options.CloudProvider, err)
-		}
-		instances, supported := cloud.Instances()
-		if !supported {
-			return fmt.Errorf("%q cloud provider has no instances", options.CloudProvider)
-		}
-		hostname, err := os.Hostname()
-		if err != nil {
-			return fmt.Errorf("failed to get hostname: %v", err)
-		}
-		nodeName, err := instances.CurrentNodeName(hostname)
-		if err != nil {
-			return fmt.Errorf("failed to get NodeName from %q cloud provider: %v", options.CloudProvider, err)
-		}
-		addrs, err := instances.NodeAddresses(nodeName)
-		if err != nil {
-			return fmt.Errorf("failed to get external host address from %q cloud provider: %v", options.CloudProvider, err)
-		} else {
-			for _, addr := range addrs {
-				if addr.Type == v1.NodeExternalIP {
-					options.ExternalHost = addr.Address
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
 // StorageGroupsToEncodingVersion returns a map from group name to group version,
 // computed from s.StorageVersions flag.
 func (s *ServerRunOptions) StorageGroupsToEncodingVersion() (map[string]schema.GroupVersion, error) {
@@ -214,12 +171,6 @@ func (s *ServerRunOptions) AddUniversalFlags(fs *pflag.FlagSet) {
 		"address must be reachable by the rest of the cluster. If blank, the --bind-address "+
 		"will be used. If --bind-address is unspecified, the host's default interface will "+
 		"be used.")
-
-	fs.StringVar(&s.CloudProvider, "cloud-provider", s.CloudProvider,
-		"The provider for cloud services. Empty string for no provider.")
-
-	fs.StringVar(&s.CloudConfigFile, "cloud-config", s.CloudConfigFile,
-		"The path to the cloud provider configuration file. Empty string for no configuration file.")
 
 	fs.StringSliceVar(&s.CorsAllowedOriginList, "cors-allowed-origins", s.CorsAllowedOriginList, ""+
 		"List of allowed origins for CORS, comma separated.  An allowed origin can be a regular "+
